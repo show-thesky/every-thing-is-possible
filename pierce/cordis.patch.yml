@@ -1,0 +1,7 @@
+# dsh-pierce —— 装进 profile 即生效：三段注入 + 装配层/消息层改写
+# 只写 $DSH_HOME 与自身状态；不写宿主文件，不解 asar。
+- insert:
+    - id: pierce
+      name: 'dsh-pierce'
+      config:
+        enabled: true

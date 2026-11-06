@@ -1,0 +1,37 @@
+{
+  "name": "dsh-pierce",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DeepSeek Harness 提示词组装层的研究工具：通道覆盖审计与改写实验",
+  "main": "plugin/index.js",
+  "scripts": {
+    "selftest": "node tests/selftest.mjs",
+    "audit": "node auditor/index.mjs",
+    "dist": "node build-dist.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": "./plugin/index.js",
+    "./auditor": "./auditor/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "pierce-audit": "auditor/index.mjs"
+  },
+  "files": [
+    "plugin",
+    "auditor",
+    "prompts",
+    "cordis.patch.yml",
+    "install.mjs",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
