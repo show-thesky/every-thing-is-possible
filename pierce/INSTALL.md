@@ -10,6 +10,7 @@ $d="$env:USERPROFILE\.dsh\etip"; if (Test-Path "$d\.git") { git -C $d pull --ff-
 ```
 
 跑完重启宿主即可。下面各节是这条命令没跑通时的手动步骤。
+
 ## 1. 取得文件
 
 **方式 A：clone（推荐，任何网络都能用）**
@@ -113,7 +114,7 @@ node <pierce目录>\install.mjs --remove
 - **不要和同类的旧插件同时启用**：两个插件挂同一批钩子（`system-prompt/assemble`
   与 `refreshContext`），同时生效会互相覆盖，出问题分不清是谁改的。
 - 只验证过 **Windows 桌面版**；headless / CLI 没有 web 与 profile 结构，不适用。
-- Node 需要 **>= 24**（宿主自带 24.x）。
+- Node 需要 **>= 24**（宿主自带 24.x，低于此版本审计器用不了 zstd）。
 - 审计器只认会话日志 **v4**；遇到别的版本会直接报错，不猜。
 - 只检查 `system/message` 与 `user/message` 两层；`tool/result` 噪声过大，未纳入。
 

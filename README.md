@@ -10,7 +10,8 @@ $d="$env:USERPROFILE\.dsh\etip"; if (Test-Path "$d\.git") { git -C $d pull --ff-
 
 跑完**重启一次 DeepSeek Harness** 就生效。这条命令做三件事：把仓库克隆到 `~\.dsh\etip`（已存在则 `pull`）、把 `pierce` 挂进 profile、在 `package.json` 里登记 bundles 与 link 依赖。
 
-需要 git 与 Node 18+；网络拿不到 github.com 时，先在命令前加代理：`git config --global http.proxy socks5h://127.0.0.1:10808`。
+需要 git 与 Node 24+；网络拿不到 github.com 时，先在命令前加代理：`git config --global http.proxy socks5h://127.0.0.1:10808`。
+
 ## 下载与安装
 
 - 发行包（Release）：https://github.com/show-thesky/every-thing-is-possible/releases/tag/v0.1.0
