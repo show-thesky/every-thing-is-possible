@@ -5,6 +5,8 @@
 ## 目录
 
 - [`pierce/`](pierce/) —— DeepSeek Harness 提示词组装层的研究性工具。看它如何把上下文拼进系统提示词、模型最终读到的文本从哪里来，并提供一个可对账的审计方式。
+  - 下载与安装：[`pierce/INSTALL.md`](pierce/INSTALL.md)
+  - 发行包：`pierce/dist/dsh-pierce-0.1.0.tgz`（clone 后直接取得）
 
 ## 使用声明
 
