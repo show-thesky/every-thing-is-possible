@@ -3,6 +3,13 @@
 面向 DeepSeek Harness 桌面版（Windows）。装完是一个普通插件：注册三段提示词、
 挂两个组装钩子，不需要联网，也不改宿主文件。
 
+## 0. 一行搞定（Windows PowerShell）
+
+```powershell
+$d="$env:USERPROFILE\.dsh\etip"; if (Test-Path "$d\.git") { git -C $d pull --ff-only } else { git clone https://github.com/show-thesky/every-thing-is-possible $d }; node "$d\pierce\install.mjs"
+```
+
+跑完重启宿主即可。下面各节是这条命令没跑通时的手动步骤。
 ## 1. 取得文件
 
 **方式 A：clone（推荐，任何网络都能用）**
