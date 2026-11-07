@@ -381,6 +381,32 @@ check("P79", readPrompt(frameDirs(), "post").includes("Final constraints"), "没
 fs.rmSync(frameDir, { recursive: true, force: true });
 check("P80", readPrompt(frameDirs(), "core").includes("The operator owns this machine"), "删掉覆盖后回到包内默认");
 
+// ---- 10. profile 档案（模型轴）----------------------------------------------
+const { allProfiles, listProfiles, matchProfile, readProfileMeta, resolveProfile } = await import("../plugin/profiles.js");
+const { frameInfo } = await import("../plugin/frames.js");
+
+check("P81", listProfiles().includes("glm") && listProfiles().includes("qwen"), `档案列表：${listProfiles().join(",")}`);
+check("P82", matchProfile("glm-4.6") === "glm" && matchProfile("qwen2.5-max") === "qwen", "模型线索命中档案");
+check("P83", matchProfile("") === null && matchProfile("deepseek-v4") === null, "无线索 / 无匹配都不猜");
+check("P84", matchProfile("glm-qwen-merged") === null, "命中两个也拒绝猜（宁回落默认）");
+check("P85", resolveProfile({ manual: "auto", hint: "qwen-max" }).id === "qwen" && resolveProfile({ manual: "auto", hint: "qwen-max" }).source === "auto", "自动匹配");
+check("P86", resolveProfile({ manual: "glm", hint: "qwen-max" }).id === "glm" && resolveProfile({ manual: "glm" }).source === "manual", "手选压过自动");
+check("P87", resolveProfile({ manual: "nope" }).id === "default", "档案不存在时回落默认而不是报错");
+check("P88", readProfileMeta("glm")?.status === "skeleton" && allProfiles().length >= 2, "档案元数据可读");
+check("P89", frameInfo().profile.id === "default" && frameInfo().dirs.at(-1) === PROMPTS_DIR, "默认档案时只剩包内目录");
+applyPrefs({ profile: "glm" });
+check("P90", frameInfo().profile.id === "glm" && frameInfo().profile.source === "manual", "prefs.profile 生效");
+let badProfile = "";
+try {
+	applyPrefs({ profile: "" });
+} catch (e) {
+	badProfile = String(e.message || e);
+}
+check("P91", badProfile.includes("profile"), `空档案名被拒：${badProfile}`);
+applyPrefs({ profile: "auto" });
+
+check("P92", readPrompt(frameDirs(), "core").includes("The operator owns this machine"), "删掉覆盖后回到包内默认");
+
 // ---- 汇总 ------------------------------------------------------------------
 const failed = results.filter((item) => !item.ok);
 console.log("");

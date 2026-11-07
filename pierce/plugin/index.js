@@ -3,10 +3,11 @@ import { readJson, stateRoot, writeJson } from "./state.js";
 import { applyPolicyContexts } from "./detect.js";
 import { bootPath, recordHookState, recordRewrites } from "./ledger.js";
 import { registerSections } from "./sections.js";
-import { bump, live, noteError } from "./live.js";
+import { bump, live, noteError, noteModel } from "./live.js";
 import { resolvePrefs } from "./prefs.js";
 import { recordAssembly } from "./snapshot.js";
-import { frameDirs, packageVersion } from "./paths.js";
+import { packageVersion } from "./paths.js";
+import { frameDirs, frameInfo } from "./frames.js";
 import { defineAdapter, getAdapter, resolveAdapter } from "./adapter.js";
 import dshAdapter from "./adapters/dsh.js";
 import { detectSurface } from "./adapters/surface.js";
@@ -108,7 +109,7 @@ function applyDsh(ctx, config = {}) {
 
   status.adapter = "dsh";
   status.surface = detectSurface();
-  status.frame = { dirs: frameDirs() };
+  status.frame = frameInfo();
 
   status.counters = { ...live.counters };
   writeJson(path.join(stateRoot(), "status.json"), status);
@@ -148,6 +149,11 @@ function attachAssemble(ctx) {
     try {
       bump("assemble");
       live.last.assembleAt = new Date().toISOString();
+      try {
+        noteModel(base?.variables?.model ?? base?.model ?? null);
+      } catch {
+        /* 拿不到模型名不影响组装 */
+      }
       const prefs = resolvePrefs(configRef);
       if (!prefs.enabled || !prefs.layers.assemble) {
         bump("skipped");
@@ -193,6 +199,11 @@ function attachRefresh(service) {
     try {
       bump("refresh");
       live.last.refreshAt = new Date().toISOString();
+      try {
+        noteModel(out?.variables?.model ?? out?.model ?? null);
+      } catch {
+        /* 同上 */
+      }
       const prefs = resolvePrefs(configRef);
       if (!prefs.enabled || !prefs.layers.refresh) {
         recordAssembly({ assembly: out, prefs, result: { policyIn: 0, rewrites: [], dropped: [] }, channel: "refresh", version: packageVersion() });
@@ -278,7 +289,7 @@ export function status() {
     },
     adapter: "dsh",
     surface: detectSurface(),
-    frame: { dirs: frameDirs() },
+    frame: frameInfo(),
     last: live.last,
     applyStatus: lastStatus ?? readJson(path.join(stateRoot(), "status.json"), null),
   };

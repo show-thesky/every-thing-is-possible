@@ -1,6 +1,6 @@
 {
   "name": "dsh-pierce",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "DSH 破甲 v3：两段框架 + 覆盖对账 + 拒答测量 + 前端面板",

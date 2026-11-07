@@ -15,7 +15,9 @@ import { SECTIONS, SECTION_FILES, expectedText, sectionEnabled, sectionLabel } f
 import { assemblyPath, readAssemblySnapshot } from "./snapshot.js";
 import { bootPath, ledgerPath, readAssetTexts, readLedger } from "./ledger.js";
 import { findRefusals } from "./refusal.js";
-import { PACKAGE_ROOT, PROMPTS_DIR, frameDirs, packageVersion } from "./paths.js";
+import { readProfileMeta } from "./profiles.js";
+import { PACKAGE_ROOT, PROMPTS_DIR, packageVersion } from "./paths.js";
+import { frameDirs, frameInfo } from "./frames.js";
 import { REPO, applyUpdate, checkVersion, installInfo, readUpdateCache, writeRestartScript } from "./update.js";
 import { PANEL_PREFIX, PORT_BASE, SERVICE_ID } from "./protocol.js";
 
@@ -115,6 +117,19 @@ function warningsFor(prefs, snapshot) {
   if (!prefs.layers.assemble) warnings.push("装配层已关：系统提示词里的政策句会原样留下");
   if (!prefs.sections.core) warnings.push("正文已关：只剩 pre/post 与政策句改写");
   if (!snapshot) warnings.push("还没有装配快照：在 GUI 里发任何一句话就会触发一次组装");
+
+  // 正文来源：档案 / 用户覆盖 / 默认，各说清楚，别让人以为"改了没生效"
+  const frame = frameInfo();
+  if (frame.override) warnings.push(`正文来自用户覆盖目录：${frame.override}`);
+  if (frame.profile&& frame.profile.id !== "default") {
+    const meta = readProfileMeta(frame.profile.id);
+    const untested = !meta || !meta.scores;
+    warnings.push(
+      `当前档案 ${frame.profile.id}（${frame.profile.source === "manual" ? "手选" : "按模型线索自动匹配"}）${untested ? "，**尚未实测**：分数为空，别当它已验证" : ""}`,
+    );
+  } else if (frame.model) {
+    warnings.push(`模型线索 ${frame.model}，但没有匹配到档案：用的是默认正文`);
+  }
 
   // 送达全绿却还是被拒 → 这是内容层面的事，不该再去动机制。
   const audit = readJson(auditPath(), null);
@@ -303,6 +318,7 @@ export function buildState(config = {}) {
     evidence: { matched, pending, unknown, prefsNewer, summary, badge, dock },
     warnings: warningsFor(prefs, snapshot),
     ledger,
+    frame: frameInfo(),
     audit: readJson(auditPath(), null),
     paths: {
       state: stateRoot(),

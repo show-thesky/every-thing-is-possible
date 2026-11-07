@@ -19,6 +19,8 @@ export const live = {
     refresh: { patched: false, verified: false, reason: null },
   },
   last: { assembleAt: null, refreshAt: null, error: null },
+  /** 宿主插值暴露的模型名（拿不到就是 null，绝不猜） */
+  model: null,
 };
 
 export function bump(key, by = 1) {
@@ -33,6 +35,13 @@ export function noteError(where, error) {
     where: String(where ?? "?"),
     message: String((error && error.message) || error).slice(0, 300),
   };
+}
+
+/** 记模型线索：只在宿主真给了名字时写入，空值不覆盖已有值。 */
+export function noteModel(hint) {
+  const value = String(hint ?? "").trim();
+  if (value) live.model = value;
+  return live.model;
 }
 
 export function counters() {

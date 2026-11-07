@@ -1,0 +1,15 @@
+{
+  "id": "glm",
+  "model": "GLM（智谱）",
+  "match": ["glm", "zhipu", "chatglm"],
+  "status": "skeleton",
+  "levers": {
+    "refusalShape": true,
+    "boundaryNormalize": true,
+    "firstLine": true,
+    "fictionIntensity": true,
+    "personaHook": false
+  },
+  "scores": null,
+  "notes": "尚未测。core.md / post.md 缺省时继承包内默认（2 段 2518 B）。实测后由 tools/bench.mjs --profile glm 写入 scores。"
+}

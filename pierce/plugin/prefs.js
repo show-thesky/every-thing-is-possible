@@ -18,6 +18,7 @@ import { disabledPath } from "./ledger.js";
 
 const DEFAULTS = {
   enabled: true,
+  profile: "auto",
   sections: { core: true, post: true },
   layers: { assemble: true, refresh: true },
   policy: { mode: "rewrite", criteria: "aggressive" },
@@ -83,6 +84,7 @@ export function normalizePrefs(input) {
   const d = DEFAULTS;
   return {
     enabled: bool(raw.enabled, d.enabled),
+    profile: typeof raw.profile === "string" && raw.profile.trim() ? raw.profile.trim().slice(0, 40) : d.profile,
     sections: {
       core: bool(raw?.sections?.core, d.sections.core),
       post: bool(raw?.sections?.post, d.sections.post),
@@ -147,6 +149,11 @@ function normalizePatch(input) {
     return value;
   };
   if (raw.enabled !== undefined) out.enabled = requireBool(raw.enabled, "enabled");
+  if (raw.profile !== undefined) {
+    const value = String(raw.profile ?? "").trim();
+    if (!value || value.length > 40) throw new Error("profile 必须是非空字符串（≤40 字符）");
+    out.profile = value;
+  }
   if (raw.ledger !== undefined) out.ledger = requireBool(raw.ledger, "ledger");
   if (raw.trace !== undefined) out.trace = requireBool(raw.trace, "trace");
   if (raw.sections !== undefined) {
@@ -262,6 +269,7 @@ function pick(prefs) {
   const p = normalizePrefs(prefs);
   return {
     enabled: Boolean(prefs?.enabled ?? p.enabled),
+    profile: p.profile,
     sections: p.sections,
     layers: p.layers,
     policy: p.policy,

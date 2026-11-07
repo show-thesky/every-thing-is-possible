@@ -1,5 +1,5 @@
 import { dshHome, readJson } from "../state.js";
-import { frameDirs } from "../paths.js";
+import { frameDirs } from "../frames.js";
 import { detectSurface } from "./surface.js";
 
 /**
