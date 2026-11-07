@@ -14,15 +14,16 @@ $d="$env:USERPROFILE\.dsh\etip"; if (Test-Path "$d\.git") { git -C $d pull --ff-
 
 ## 下载与安装
 
-- 发行包（Release）：https://github.com/show-thesky/every-thing-is-possible/releases/tag/v0.1.0
-- 仓库内副本：`pierce/dist/dsh-pierce-0.1.0.tgz`（clone 后直接取得；部分网络下 Release 直链不可达）
+- 发行包（Release）：https://github.com/show-thesky/every-thing-is-possible/releases
+- 仓库内副本：`pierce/dist/dsh-pierce-0.3.0.tgz`（clone 后直接取得；部分网络下 Release 直链不可达）
 - 详细步骤：[`pierce/INSTALL.md`](pierce/INSTALL.md)
 
 ## 目录
 
 - [`pierce/`](pierce/) —— DeepSeek Harness 提示词组装层的研究性工具。看它如何把上下文拼进系统提示词、模型最终读到的文本从哪里来，并提供一个可对账的审计方式。
   - 下载与安装：[`pierce/INSTALL.md`](pierce/INSTALL.md)
-  - 发行包：`pierce/dist/dsh-pierce-0.1.0.tgz`（clone 后直接取得）
+  - v0.3.0 实测报告：[`pierce/docs/v0.3.0-report.md`](pierce/docs/v0.3.0-report.md)（体积 / 送达 / 能力 / 相重）
+  - 发行包：`pierce/dist/dsh-pierce-0.3.0.tgz`（clone 后直接取得）
 
 ## 使用声明
 

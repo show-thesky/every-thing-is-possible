@@ -10,15 +10,21 @@
  *
  * 退出码：0 = 0 漏；1 = 有漏点；2 = 环境/格式问题（不能下结论）
  *
- * 判据不在这里，在 ../plugin/detect.js —— 审计器和插件共用同一份，避免两边漂移。
+ * 两条轴分开报，因为它们坏掉的修法完全不同：
+ *   轴一 送达（漏点）：模型输入里还有没有没被处置的权限句 —— 机制问题，改插件。
+ *   轴二 拒答（refusal）：送达都对，但模型在内容层面收口了 —— 提示词/框架问题。
+ *
+ * 判据不在这里，在 ../plugin/detect.js 与 ../plugin/refusal.js ——
+ * 审计器和插件共用同一份，避免两边漂移。
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dshHome, readJson, stateRoot } from "../plugin/state.js";
-import { bootPath, ledgerPath, readLedger } from "../plugin/ledger.js";
-import { assertLogVersion, decodeSessionLog, extractInputTexts, findSessionLog, parseRecords } from "./logreader.js";
+import { bootPath, ledgerPath, readAssetTexts, readLedger } from "../plugin/ledger.js";
+import { findRefusals } from "../plugin/refusal.js";
+import { assertLogVersion, decodeSessionLog, extractAssistantTexts, extractInputTexts, findSessionLog, parseRecords } from "./logreader.js";
 import { loadOwnPrompts, reconcile } from "./reconcile.js";
 
 const PROJECT_ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -55,8 +61,13 @@ try {
 }
 
 const texts = extractInputTexts(records, { since: bootAt });
-const ownPrompts = loadOwnPrompts(path.join(PROJECT_ROOT, "prompts"));
+const ownPrompts = [...loadOwnPrompts(path.join(PROJECT_ROOT, "prompts")), ...readAssetTexts()];
 const result = reconcile(texts, ledger, ownPrompts);
+
+// 第二条轴：模型是不是收口了。送达对不对（上面）和干没干活（这里）是两件事，
+// 混在一起看就会把"内容策略收口"误读成"破甲失效"。
+const replies = extractAssistantTexts(records, { since: bootAt });
+const refusals = findRefusals(replies);
 
 const payload = {
   ok: result.findings.length === 0 && !ledgerMissing,
@@ -68,6 +79,8 @@ const payload = {
   checkedTexts: result.checked,
   policyFragments: result.policyFragments,
   findings: result.findings,
+  replies: replies.length,
+  refusals,
 };
 
 if (asJson) {
@@ -77,13 +90,22 @@ if (asJson) {
   console.log(`窗口    ${bootAt ? `本次启动之后（${bootAt}）` : "全量"}`);
   console.log(`账本    ${ledgerMissing ? "不可读（全部判为漏点）" : `${ledger.length} 条`}`);
   console.log(`检查    ${result.checked} 段模型输入文本，其中 ${result.policyFragments} 段判为权限类`);
+  console.log(`回复    ${replies.length} 条，其中 ${refusals.total} 条命中拒答特征`);
   console.log("");
   if (result.findings.length === 0) {
-    console.log("结果    0 漏 ✓");
+    console.log("送达    0 漏 ✓");
   } else {
-    console.log(`结果    ${result.findings.length} 处漏点：`);
+    console.log(`送达    ${result.findings.length} 处漏点：`);
     for (const f of result.findings) {
       console.log(`  · [${f.type} seq=${f.seq}] ${f.fragment}`);
+    }
+  }
+  if (refusals.total === 0) {
+    console.log("收口    0 次 ✓");
+  } else {
+    console.log(`收口    ${refusals.total} 次（内容轴，不是送达问题）：`);
+    for (const r of refusals.items) {
+      console.log(`  · [${r.kind} seq=${r.seq}] ${r.excerpt}`);
     }
   }
 }

@@ -90,8 +90,30 @@ export function extractInputTexts(records, { since = "" } = {}) {
   return out;
 }
 
-/** 自动挑一个会话日志：优先最新修改的那个。 */
-export function findSessionLog(dshHome) {
+/**
+ * 抽出助手回复的正文（拒答识别的输入）。
+ *
+ * 只取 assistant/message 的文本块：工具调用、思考块都不是给人看的回复，
+ * 混进来会让拒答判据误命中（比如工具描述里出现 "I can't"）。
+ */
+export function extractAssistantTexts(records, { since = "" } = {}) {
+  const sinceMs = since ? Date.parse(since) : NaN;
+  const out = [];
+  for (const record of records) {
+    if (!record || record.type !== "assistant/message") continue;
+    if (Number.isFinite(sinceMs) && Number.isFinite(record.time) && record.time < sinceMs) continue;
+    const text = blocksToText(record.data?.message?.content);
+    if (!text.trim()) continue;
+    out.push({
+      seq: record.seq ?? null,
+      at: Number.isFinite(record.time) ? new Date(record.time).toISOString() : null,
+      text,
+    });
+  }
+  return out;
+}
+
+/** 自动挑一个会话日志：优先最新修改的那个。 */export function findSessionLog(dshHome) {
   const root = path.join(dshHome, "sessions");
   let best = null;
   const walk = (dir, depth) => {

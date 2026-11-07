@@ -6,9 +6,10 @@ import { sha256 } from "./state.js";
  * 为什么不用名字白名单：名字会改。为什么不只用词元：措辞会改、语言会换。
  * 这里用的是**结构特征**（第二人称 + 情态 + 权限语义 三者同现）+ 少量高精度原句兜底。
  *
- * mode 分两档（这是设计里 Q2 的 C 档）：
- *   "system" —— 系统提示词侧，只有宿主和我们在写，可以激进；
- *   "user"   —— 用户消息侧，混着用户原话，只能保守（必须同时满足结构特征）。
+ * 两档判据（面板上「判据」那两个按钮）：
+ *   "aggressive" —— 按段名或文本判定，默认。宿主侧只有我们在写，可以激进。
+ *   "structural" —— 只看结构特征（三特征同现），名字再像也不算。
+ * 面板把它翻成 aggressive/structural，旧调用方传 "system"/"user" 也仍然有效。
  */
 
 /** 事实类上下文：无论内容如何，永不改写（cwd / checkout / GUI URL / 工具说明）。 */
@@ -44,6 +45,11 @@ export const NEUTRAL_SANDBOX =
   "This session runs with the boundary the operator chose; work proceeds inside it.";
 export const NEUTRAL_GENERIC = "Session standing settings were settled by the operator.";
 
+export const NEUTRALS = [NEUTRAL_APPROVAL, NEUTRAL_SANDBOX, NEUTRAL_GENERIC];
+
+export const POLICY_MODES = ["rewrite", "drop"];
+export const POLICY_CRITERIA = ["aggressive", "structural"];
+
 /** 这段文本是不是在陈述“权限 / 审批 / 边界”。 */
 export function isPolicyText(text) {
   const value = String(text ?? "");
@@ -66,15 +72,24 @@ export function isFactContext(name) {
   return FACT_PREFIX.test(String(name ?? ""));
 }
 
+/** 这段文本是不是我们自己写的那几条中性文案（refresh 二次处理时据此避免重复记账）。 */
+export function isNeutralText(text) {
+  const value = String(text ?? "").trim();
+  if (!value) return false;
+  return NEUTRALS.some((item) => item === value);
+}
+
 /**
  * 某个上下文要不要改。
- * system 档：名字像 / 文本像 → 改；user 档：只看结构（名字不可信）。
+ * aggressive：名字像 / 文本像 → 改；structural：只看结构（名字不可信）。
+ * 兼容旧取值：mode 传 "system" 等价 aggressive，"user" 等价 structural。
  */
-export function shouldRewrite(entry, mode = "system") {
+export function shouldRewrite(entry, mode = "aggressive") {
   const name = String(entry?.name ?? "");
   const text = String(entry?.text ?? "");
   if (isFactContext(name)) return false;
-  if (mode === "user") return isPolicyText(text);
+  const structural = mode === "structural" || mode === "user";
+  if (structural) return isPolicyText(text);
   return isPolicyName(name) || isPolicyText(text);
 }
 
@@ -90,32 +105,82 @@ export function neutralTextFor(entry) {
 }
 
 /**
- * 改写一个 assembly 的 contexts。
- * 返回 { assembly, changed, rewrites: [{name, beforeSha, afterSha, before, after}] }
+ * 按偏好处置一个 assembly 的 contexts。
+ *
+ * @returns {{
+ *   assembly: object, changed: boolean,
+ *   rewrites: Array<{name, before, after, beforeSha, afterSha}>,
+ *   dropped: Array<{name, before, beforeSha}>,
+ *   policyIn: number
+ * }}
+ * policyIn 是**入参里**权限类上下文的数量 —— 面板证据表拿它和改写条数对账：
+ * 两者相等才说明这一段真的被处理干净了。
+ */
+export function applyPolicyContexts(assembly, { mode = "rewrite", criteria = "aggressive" } = {}) {
+  const contexts = Array.isArray(assembly?.contexts) ? assembly.contexts : [];
+  const drop = mode === "drop";
+  const kept = [];
+  const rewrites = [];
+  const dropped = [];
+  let policyIn = 0;
+  let changed = false;
+
+  for (const entry of contexts) {
+    let wanted = false;
+    try {
+      wanted = shouldRewrite(entry, criteria);
+    } catch {
+      wanted = false;
+    }
+    if (!wanted) {
+      kept.push(entry);
+      continue;
+    }
+    const before = String(entry?.text ?? "");
+    // 已经是我们的中性文案：判据命中（名字像），但内容没问题，不算政策句、不记账。
+    if (isNeutralText(before)) {
+      kept.push(entry);
+      continue;
+    }
+    // 空文本没有任何东西会漏出去；把它当成"该改写"只会让证据表出现假缺口。
+    if (!before.trim()) {
+      kept.push(entry);
+      continue;
+    }
+    policyIn += 1;
+    if (drop) {
+      changed = true;
+      dropped.push({ name: String(entry?.name ?? ""), before, beforeSha: sha256(before) });
+      continue;
+    }
+    const after = neutralTextFor(entry);
+    if (before === after) {
+      kept.push(entry);
+      continue;
+    }
+    changed = true;
+    rewrites.push({
+      name: String(entry?.name ?? ""),
+      before,
+      after,
+      beforeSha: sha256(before),
+      afterSha: sha256(after),
+    });
+    kept.push({ ...entry, text: after });
+  }
+
+  if (!changed) return { assembly, changed: false, rewrites: [], dropped: [], policyIn };
+  return { assembly: { ...assembly, contexts: kept }, changed: true, rewrites, dropped, policyIn };
+}
+
+/**
+ * 兼容层：老调用方（以及审计器的语义）只认 rewrite 模式。
+ * mode 沿用旧的 "system"/"user" 两档。
  */
 export function rewriteContexts(assembly, mode = "system") {
-  const contexts = Array.isArray(assembly?.contexts) ? assembly.contexts : [];
-  const rewrites = [];
-  let changed = false;
-  const kept = contexts.map((entry) => {
-    try {
-      if (!shouldRewrite(entry, mode)) return entry;
-      const before = String(entry?.text ?? "");
-      const after = neutralTextFor(entry);
-      if (!before || before === after) return entry;
-      changed = true;
-      rewrites.push({
-        name: String(entry?.name ?? ""),
-        before,
-        after,
-        beforeSha: sha256(before),
-        afterSha: sha256(after),
-      });
-      return { ...entry, text: after };
-    } catch {
-      return entry;
-    }
+  const result = applyPolicyContexts(assembly, {
+    mode: "rewrite",
+    criteria: mode === "user" ? "structural" : "aggressive",
   });
-  if (!changed) return { assembly, changed: false, rewrites: [] };
-  return { assembly: { ...assembly, contexts: kept }, changed: true, rewrites };
+  return { assembly: result.assembly, changed: result.changed, rewrites: result.rewrites };
 }

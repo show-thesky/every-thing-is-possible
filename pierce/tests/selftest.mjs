@@ -16,6 +16,8 @@ import path from "node:path";
 import zlib from "node:zlib";
 
 process.env.DSH_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "pierce-selftest-"));
+// 自测不真的开监听端口（面板服务由 tests/panel-selftest.mjs 直接测 handler）
+process.env.PIERCE_NO_PANEL = "1";
 const { isPolicyText, isFactContext, shouldRewrite, rewriteContexts, NEUTRAL_APPROVAL, NEUTRAL_SANDBOX } = await import("../plugin/detect.js");
 const { recordRewrites, readLedger, ledgerPath } = await import("../plugin/ledger.js");
 const { decodeSessionLog, parseRecords, extractInputTexts, assertLogVersion } = await import("../auditor/logreader.js");
@@ -129,7 +131,7 @@ const ctx = {
   on(name, fn) { seen.handlers.push({ name, fn }); return () => {}; },
 };
 const applied = apply(ctx, {});
-check("A1", seen.sections.length === 3, `注册 ${seen.sections.length} 段`);
+check("A1", seen.sections.length === 2, `注册 ${seen.sections.length} 段（core / post）`);
 check("A2", applied.hooks.assemble.attached === true, "assemble waterfall 已挂");
 check("A3", applied.hooks.refresh.patched === true, `refreshContext 包装 patched=${applied.hooks.refresh.patched}`);
 

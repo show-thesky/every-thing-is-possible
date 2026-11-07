@@ -177,5 +177,6 @@ if (!lines.some((line) => /^- id:\s*pierce\b/.test(line))) {
 
 fs.writeFileSync(PATCH, lines.join("\n"), "utf8");
 
-log("\n  下一步：重启宿主，然后跑");
-log("    node auditor/index.mjs\n");
+log("\n  下一步：重启宿主（客户端半边要重新进 boot 图，不重启看不到面板），然后");
+log("    · 输入框工具条右边会出现「破甲」按钮 —— 那就是面板");
+log("    · node auditor/index.mjs 做命令行对账\n");
