@@ -14,8 +14,8 @@ git clone https://github.com/show-thesky/every-thing-is-possible
 发行包在 `pierce/dist/`：
 
 ```
-dsh-pierce-0.3.0.tgz        ~49 KB  ← 用它装
-dsh-pierce-0.3.0-dist.zip   ~60 KB  ← 不想用包管理器时手动解压
+dsh-pierce-0.3.0.tgz        ~30 KB  ← 用它装
+dsh-pierce-0.3.0-dist.zip   ~40 KB  ← 不想用包管理器时手动解压
 ```
 
 **方式 B：Release 直链**
@@ -33,7 +33,7 @@ profile 目录：`%USERPROFILE%\.dsh\profiles\desktop`
 
 ```powershell
 cd $env:USERPROFILE\.dsh\profiles\desktop
-pnpm add file:<下载目录>\dsh-pierce-0.3.0.tgz
+pnpm add file:<下载目录>\dsh-pierce-0.1.0.tgz
 ```
 
 **方式 B：手动（不需要 pnpm）**

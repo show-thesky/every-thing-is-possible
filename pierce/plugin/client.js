@@ -532,9 +532,11 @@ window.__ModuleLoader__.load({
 													? h(
 															"span",
 															{ className: version.updateAvailable ? "pr-ok" : "" },
-															version.behind ? `最新 v${version.latest}（比本地旧）` : `最新 v${version.latest}`,
+															version.behind
+																? `最新 v${version.latest}（比本地旧）`
+																: `最新 v${version.latest}${version.source === "tag" ? "（tag）" : ""}`,
 														)
-													: h("span", null, version.checkedAt ? "仓库无正式 release" : "未检查"),
+													: h("span", null, version.checkedAt ? "仓库里还没有 tag/release" : "未检查"),
 												h("span", { className: "pr-mono" }, version.checkedAt ? new Date(version.checkedAt).toLocaleTimeString() : ""),
 											),
 											version.error ? h("div", { className: "pr-note bad" }, `检查失败：${version.error}`) : null,

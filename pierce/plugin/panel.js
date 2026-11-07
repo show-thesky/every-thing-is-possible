@@ -166,6 +166,7 @@ function versionBlock() {
     releases: `${REPO.url}/releases`,
     latest: cache?.latest ?? null,
     latestTag: cache?.latestTag ?? null,
+    source: cache?.source ?? null,
     publishedAt: cache?.publishedAt ?? null,
     releaseUrl: cache?.releaseUrl ?? `${REPO.url}/releases`,
     checkedAt: cache?.at ?? null,

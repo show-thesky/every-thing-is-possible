@@ -194,6 +194,13 @@ check("P37", compareVersions("0.2.0", "0.1.0") === 1 && compareVersions("0.1.0",
 check("P38", compareVersions("0.2.0", "0.2.0-rc.1") === 1 && compareVersions("0.2.0-rc.1", "0.2.0") === -1, "正式版 > 预发布");
 check("P39", compareVersions("x", "1.0.0") === null, "解析不了 → null（不瞎比）");
 
+const { pickLatest } = await import("../plugin/update.js");
+const releaseArm = [{ tag_name: "v0.1.0", draft: false, prerelease: false, assets: [{ name: "a.tgz", size: 1 }] }];
+check("P40", pickLatest(releaseArm, [{ name: "v0.3.0" }])?.tag === "v0.3.0" && pickLatest(releaseArm, [{ name: "v0.3.0" }])?.source === "tag", "tag 比旧 release 新 → 取 tag");
+check("P41", pickLatest(releaseArm, [])?.source === "release" && pickLatest(releaseArm, [])?.assets.length === 1, "只有 release 时取 release 并带资产");
+check("P42", pickLatest([], [{ name: "v0.2.0" }, { name: "nightly" }, { name: "v0.10.0" }])?.tag === "v0.10.0", "tag 里挑最高版本、非版本号忽略");
+check("P43", pickLatest([{ tag_name: "v0.2.0", prerelease: true }], []) === null, "预发布 release 不算");
+
 // ---- 6. 协议 / 清单一致性 ---------------------------------------------------
 const clientSource = fs.readFileSync(path.join(PROMPTS_DIR, "..", "plugin", "client.js"), "utf8");
 const missingRoutes = Object.values(ROUTES)

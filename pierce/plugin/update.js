@@ -61,39 +61,87 @@ export function readUpdateCache() {
 }
 
 /**
- * 查仓库最新 release。结果落盘做缓存（面板打开时先显示上次结果，不必每次打网络）。
+ * 从 releases 与 tags 里挑最新的一版（纯函数，可离线测）。
+ *
+ * 为什么还要看 tags：这个仓库的发行资产是**直接提交在仓库里的**
+ * （`pierce/dist/*.tgz`），打 tag 就够了，不一定建 release。只看 release 的话，
+ * 新版明明已经推上去、面板还报"仓库最新 v0.1.0（比本地旧）"。
+ * release 优先于同版本 tag；版本更高的胜。
+ */
+export function pickLatest(releases = [], tags = []) {
+  const candidates = [];
+  for (const release of releases || []) {
+    if (!release || release.draft || release.prerelease) continue;
+    const tag = String(release.tag_name || "");
+    if (!parseVersion(tag)) continue;
+    candidates.push({
+      tag,
+      source: "release",
+      name: release.name || null,
+      publishedAt: release.published_at || null,
+      url: release.html_url || `${REPO.url}/releases/tag/${tag}`,
+      body: String(release.body || "").slice(0, 600),
+      assets: (release.assets || []).map((asset) => ({ name: asset.name, size: asset.size })),
+    });
+  }
+  for (const item of tags || []) {
+    const tag = String(item?.name || "");
+    if (!parseVersion(tag)) continue;
+    candidates.push({
+      tag,
+      source: "tag",
+      name: null,
+      publishedAt: null,
+      url: `${REPO.url}/tree/${tag}`,
+      body: "",
+      assets: [],
+    });
+  }
+  if (!candidates.length) return null;
+  // release 优先：同版本时排在前面
+  candidates.sort((a, b) => {
+    const cmp = compareVersions(b.tag, a.tag);
+    if (cmp !== 0) return cmp;
+    return a.source === "release" ? -1 : 1;
+  });
+  return candidates[0];
+}
+
+/**
+ * 查仓库最新版本（release 优先，退回 tag）。结果落盘做缓存。
  * 网络不通不抛错，返回 {ok:false, error}，由面板老实显示。
  */
 export async function checkVersion(localVersion) {
   const local = String(localVersion || "").replace(/^v/i, "") || null;
-  const response = await getJson(`https://api.github.com/repos/${REPO.owner}/${REPO.name}/releases?per_page=20`, {
-    timeoutMs: 9000,
-  });
+  const base = `https://api.github.com/repos/${REPO.owner}/${REPO.name}`;
+  const [releases, tags] = await Promise.all([
+    getJson(`${base}/releases?per_page=20`, { timeoutMs: 9000 }),
+    getJson(`${base}/tags?per_page=30`, { timeoutMs: 9000 }),
+  ]);
 
   const at = new Date().toISOString();
-  if (!response.ok || !Array.isArray(response.json)) {
+  const releaseList = releases.ok && Array.isArray(releases.json) ? releases.json : [];
+  const tagList = tags.ok && Array.isArray(tags.json) ? tags.json : [];
+
+  if (!releases.ok && !tags.ok) {
     const error =
-      response.error ||
-      (response.json && response.json.message ? `GitHub：${response.json.message}` : null) ||
-      `HTTP ${response.status || "?"}`;
+      releases.error ||
+      tags.error ||
+      (releases.json && releases.json.message ? `GitHub：${releases.json.message}` : null) ||
+      `HTTP ${releases.status || tags.status || "?"}`;
     const payload = { at, ok: false, error, local, repo: REPO.url, latest: null };
     writeJson(updateCachePath(), payload);
     return payload;
   }
 
-  let best = null;
-  for (const release of response.json) {
-    if (!release || release.draft || release.prerelease) continue;
-    if (!parseVersion(release.tag_name)) continue;
-    if (!best || compareVersions(release.tag_name, best.tag_name) > 0) best = release;
-  }
+  const best = pickLatest(releaseList, tagList);
   if (!best) {
-    const payload = { at, ok: true, error: null, local, repo: REPO.url, latest: null, note: "仓库里还没有正式 release" };
+    const payload = { at, ok: true, error: null, local, repo: REPO.url, latest: null, note: "仓库里还没有 release 或 tag" };
     writeJson(updateCachePath(), payload);
     return payload;
   }
 
-  const latest = String(best.tag_name || "").replace(/^v/i, "");
+  const latest = String(best.tag || "").replace(/^v/i, "");
   const cmp = local ? compareVersions(latest, local) : null;
   const payload = {
     at,
@@ -102,12 +150,13 @@ export async function checkVersion(localVersion) {
     local,
     repo: REPO.url,
     latest,
-    latestTag: best.tag_name,
+    latestTag: best.tag,
+    source: best.source,
     latestName: best.name || null,
-    publishedAt: best.published_at || null,
-    releaseUrl: best.html_url || `${REPO.url}/releases/tag/${best.tag_name}`,
+    publishedAt: best.publishedAt || null,
+    releaseUrl: best.url || `${REPO.url}/releases`,
     body: String(best.body || "").slice(0, 600),
-    assets: (best.assets || []).map((asset) => ({ name: asset.name, size: asset.size })),
+    assets: best.assets || [],
     updateAvailable: cmp !== null && cmp > 0,
     behind: cmp !== null && cmp < 0,
     cmp,
