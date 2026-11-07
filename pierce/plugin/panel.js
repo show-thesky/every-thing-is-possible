@@ -15,7 +15,7 @@ import { SECTIONS, SECTION_FILES, expectedText, sectionEnabled, sectionLabel } f
 import { assemblyPath, readAssemblySnapshot } from "./snapshot.js";
 import { bootPath, ledgerPath, readAssetTexts, readLedger } from "./ledger.js";
 import { findRefusals } from "./refusal.js";
-import { PACKAGE_ROOT, PROMPTS_DIR, packageVersion } from "./paths.js";
+import { PACKAGE_ROOT, PROMPTS_DIR, frameDirs, packageVersion } from "./paths.js";
 import { REPO, applyUpdate, checkVersion, installInfo, readUpdateCache, writeRestartScript } from "./update.js";
 import { PANEL_PREFIX, PORT_BASE, SERVICE_ID } from "./protocol.js";
 
@@ -46,7 +46,7 @@ function partLabel(part) {
 }
 
 function sectionRow(key, prefs, snapshot) {
-  const expected = expectedText(PROMPTS_DIR, key, prefs);
+  const expected = expectedText(frameDirs(), key, prefs);
   const on = sectionEnabled(prefs, key);
   const wanted = on && expected.trim() !== "";
   const offLabel = "关闭";
@@ -275,7 +275,7 @@ export function buildState(config = {}) {
         }
       : null,
     sections: ["core", "post"].map((key) => {
-      const text = expectedText(PROMPTS_DIR, key, prefs);
+      const text = expectedText(frameDirs(), key, prefs);
       return {
         key,
         name: SECTIONS[key],

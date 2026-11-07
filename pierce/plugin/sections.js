@@ -32,11 +32,17 @@ export function sectionLabel(key) {
 export function readPrompt(promptsDir, key) {
   const file = SECTION_FILES[key];
   if (!file) return "";
-  try {
-    return fs.readFileSync(path.join(promptsDir, file), "utf8");
-  } catch {
-    return "";
+  const dirs = Array.isArray(promptsDir) ? promptsDir : [promptsDir];
+  for (const dir of dirs) {
+    if (!dir) continue;
+    try {
+      const fp = path.join(dir, file);
+      if (fs.existsSync(fp)) return fs.readFileSync(fp, "utf8");
+    } catch {
+      /* 这个目录读不了就试下一个 */
+    }
   }
+  return "";
 }
 
 /** 这一段当前该不该贡献内容（面板的「期望」列和运行时 thunk 共用这一份判断）。 */

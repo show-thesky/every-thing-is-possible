@@ -336,6 +336,51 @@ check("P63", classifyReply(SCOPE_GATED).refused === true && classifyReply(SCOPE_
 check("P64", classifyReply(SCOPE_OK).refused === false, "带占位符的完整流程不误判");
 check("P65", classifyReply(PROSE).kind === null && classifyReply(TECHNICAL).kind === null, "正文/技术回答仍然安全");
 
+// ---- 9. 适配器接缝 + 宿主面 + 正文覆盖 ---------------------------------------
+const { SURFACES, adapterFor, detectSurface } = await import("../plugin/adapters/surface.js");
+const { clearAdapters, defineAdapter, listAdapters, resolveAdapter } = await import("../plugin/adapter.js");
+const { dshAdapter } = await import("../plugin/adapters/dsh.js");
+const { frameDirs, userFrameDir } = await import("../plugin/paths.js");
+const { readPrompt } = await import("../plugin/sections.js");
+
+check("P66", detectSurface({ env: { DSH_SURFACE: "desktop" } }) === "desktop", "DSH_SURFACE 可强制宿主面");
+check("P67", detectSurface({ env: {}, execPath: "C:/Program Files/DeepSeek Harness/DeepSeek Harness.exe" }) === "desktop", "桌面 exe 识别为 desktop");
+check(
+	"P68",
+	detectSurface({ env: {}, execPath: "C:/node/node.exe", resourcesPath: "C:/app/resources", fs: { existsSync: (p) => /app\.asar$/.test(String(p)) } }) === "desktop",
+	"resources/app.asar 存在识别为 desktop",
+);
+check("P69", detectSurface({ env: {}, execPath: "C:/node/node.exe", resourcesPath: "", argv: ["node"] }) === "web", "认不出来回落 web");
+check("P70", SURFACES.includes("gui") && adapterFor("gui") === "web" && adapterFor("desktop") === "desktop", "未适配的宿主面按 web 处理");
+
+let badAdapter = "";
+try {
+	defineAdapter({ id: "x" });
+} catch (e) {
+	badAdapter = String(e.message || e);
+}
+check("P71", badAdapter.includes("缺少"), `缺能力的适配器被拒绝：${badAdapter}`);
+clearAdapters();
+defineAdapter({ id: "low", priority: 1, detect: () => true, apply: () => "low" });
+defineAdapter({ id: "high", priority: 5, detect: () => true, apply: () => "high" });
+check("P72", resolveAdapter({}).id === "high" && resolveAdapter({}).apply() === "high", "按优先级选适配器");
+defineAdapter({ ...dshAdapter, apply: () => "dsh" });
+check("P73", resolveAdapter({}).id === "dsh", "DSH（优先级 10）压过普通适配器");
+clearAdapters();
+defineAdapter({ ...dshAdapter, apply: () => "dsh" });
+check("P74", resolveAdapter({ ctx: { systemPrompt: {} } }).id === "dsh" && resolveAdapter({ ctx: {} }).id === "dsh", "DSH 识别 + 兜底回 dsh");
+check("P75", listAdapters().includes("dsh"), "注册表里有 dsh");
+
+const frameDir = path.join(process.env.DSH_HOME, "pierce", "frame");
+check("P76", userFrameDir() === null && frameDirs().at(-1) === PROMPTS_DIR, "没有覆盖目录时只用包内默认");
+fs.mkdirSync(frameDir, { recursive: true });
+fs.writeFileSync(path.join(frameDir, "core.md"), "USER OVERRIDE CORE\n", "utf8");
+check("P77", userFrameDir() === frameDir && frameDirs()[0] === frameDir, "有覆盖目录时排在最前");
+check("P78", readPrompt(frameDirs(), "core").startsWith("USER OVERRIDE CORE"), "readPrompt 按顺序取用户覆盖");
+check("P79", readPrompt(frameDirs(), "post").includes("Final constraints"), "没被覆盖的段仍取包内默认");
+fs.rmSync(frameDir, { recursive: true, force: true });
+check("P80", readPrompt(frameDirs(), "core").includes("The operator owns this machine"), "删掉覆盖后回到包内默认");
+
 // ---- 汇总 ------------------------------------------------------------------
 const failed = results.filter((item) => !item.ok);
 console.log("");

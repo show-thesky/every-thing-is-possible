@@ -6,7 +6,10 @@ import { registerSections } from "./sections.js";
 import { bump, live, noteError } from "./live.js";
 import { resolvePrefs } from "./prefs.js";
 import { recordAssembly } from "./snapshot.js";
-import { PROMPTS_DIR, packageVersion } from "./paths.js";
+import { frameDirs, packageVersion } from "./paths.js";
+import { defineAdapter, getAdapter, resolveAdapter } from "./adapter.js";
+import dshAdapter from "./adapters/dsh.js";
+import { detectSurface } from "./adapters/surface.js";
 import { attachWebRoute, createPanelHandler, panelRuntimeState, startPanelServer } from "./routes.js";
 
 /**
@@ -26,7 +29,7 @@ export const inject = ["systemPrompt"];
 let configRef = {};
 let lastStatus = null;
 
-export function apply(ctx, config = {}) {
+function applyDsh(ctx, config = {}) {
   configRef = config && typeof config === "object" ? config : {};
   const prefs = resolvePrefs(configRef);
   const version = packageVersion();
@@ -59,7 +62,7 @@ export function apply(ctx, config = {}) {
   // 1) 三段：始终注册，文本 thunk 每次现读偏好
   if (service) {
     try {
-      status.sections = registerSections(service, PROMPTS_DIR, () => resolvePrefs(configRef));
+      status.sections = registerSections(service, frameDirs(), () => resolvePrefs(configRef));
     } catch (e) {
       status.sections = { registered: [], errors: [String((e && e.message) || e)], orders: {} };
       noteError("apply.sections", e);
@@ -103,12 +106,29 @@ export function apply(ctx, config = {}) {
     portError: runtime.error ?? null,
   };
 
+  status.adapter = "dsh";
+  status.surface = detectSurface();
+  status.frame = { dirs: frameDirs() };
+
   status.counters = { ...live.counters };
   writeJson(path.join(stateRoot(), "status.json"), status);
   writeJson(bootPath(), { at, bootId: live.bootId, pid: process.pid, version });
 
   lastStatus = status;
   return status;
+}
+
+// 模块加载时登记 DSH 适配器（热重载重复登记是幂等的）。apply 指回本文件实现。
+defineAdapter({ ...dshAdapter, apply: applyDsh, status });
+
+/**
+ * 对外入口：先问注册表"现在是谁"，再交给它挂载。
+ * 直接调用（测试 / 命令行）时 resolveAdapter 会经 detect() 认出 DSH。
+ */
+export function apply(ctx, config = {}) {
+  const adapter = resolveAdapter({ ctx, env: process.env }) ?? getAdapter("dsh");
+  if (!adapter) throw new Error("pierce: 没有可用的宿主适配器");
+  return adapter.apply(ctx, config);
 }
 
 function attachAssemble(ctx) {
@@ -256,6 +276,9 @@ export function status() {
         reason: live.hooks.refresh.reason ?? null,
       },
     },
+    adapter: "dsh",
+    surface: detectSurface(),
+    frame: { dirs: frameDirs() },
     last: live.last,
     applyStatus: lastStatus ?? readJson(path.join(stateRoot(), "status.json"), null),
   };

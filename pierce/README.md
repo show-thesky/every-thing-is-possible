@@ -75,6 +75,29 @@ post.md   539 B  6 条收口（系统提示词末尾，靠近因权重）
 **开关下一轮生效，不用重启。** 两段与钩子始终注册，是否干活在每次调用时现读偏好 ——
 关闭一段 = 文本 thunk 返回空串，关闭一层 = 原样放行。
 
+## 换正文不用改仓库
+
+注入正文按下面的顺序取，**第一个存在的文件胜出**：
+
+```
+1. $DSH_HOME/pierce/frame/core.md  + post.md     ← 用户覆盖（换模型/换措辞时改这里）
+2. <包内>/prompts/core.md + post.md              ← 默认（随仓库分发）
+```
+
+所以试新模型、调措辞，写两个文件即可，下一轮组装生效，不重装、不重启、不动仓库。
+`status.json` 的 `frame.dirs` 会写出当前生效的搜索顺序，方便确认到底读的是哪一份。
+
+## 宿主适配器
+
+机制层不直接认识宿主：`plugin/adapter.js` 是注册表，`plugin/adapters/dsh.js` 是第一个
+适配器（认宿主 + 探测宿主面 `web/desktop/gui/tui` + 给正文目录），挂载逻辑仍由
+`plugin/index.js` 提供。加第二个宿主形态（例如 OpenAI 兼容代理）时，只需要实现自己的
+`apply()` 并 `defineAdapter()`，不用复制这份实现。
+
+```
+node -e "const {listAdapters,resolveAdapter}=await import('./plugin/adapter.js');console.log(listAdapters())"
+```
+
 ## 审计与测量
 
 ```
