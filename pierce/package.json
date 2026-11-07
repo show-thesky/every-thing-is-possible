@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "DSH 破甲 v2：前置改写 + 事后对账 + 可开关的前端面板",
+  "description": "DSH 破甲 v3：两段框架 + 覆盖对账 + 拒答测量 + 前端面板",
   "main": "plugin/index.js",
   "scripts": {
     "selftest": "node tests/selftest.mjs",
